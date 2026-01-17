@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { MainCategory, Profile } from './types';
 import { supabase } from './lib/supabaseClient';
@@ -11,6 +12,10 @@ const App: React.FC = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [inventory, setInventory] = useState<MainCategory[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved ? saved === 'dark' : true;
+  });
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -39,6 +44,16 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
+
   const fetchProfileAndInventory = async (currentSession: Session) => {
     if (!currentSession?.user) return;
     setLoading(true);
@@ -61,8 +76,6 @@ const App: React.FC = () => {
   };
   
   const fetchInventory = async (userProfile: Profile) => {
-    // Boss query: fetches all their own data.
-    // Worker query: fetches their boss's data, but crucially selects only the selling_price.
     const query = supabase
       .from('main_categories')
       .select(`
@@ -95,12 +108,11 @@ const App: React.FC = () => {
     if (error) {
         console.error('Error fetching inventory:', error);
     } else {
-        // Map snake_case to camelCase
         const formattedData = data.map(cat => ({
             ...cat,
             subCategories: cat.subCategories.map(sub => ({
                 ...sub,
-                buyingPrice: sub.buyingPrice || 0, // Ensure buyingPrice exists for workers, even if 0
+                buyingPrice: sub.buyingPrice || 0,
             }))
         }));
         setInventory(formattedData as unknown as MainCategory[]);
@@ -115,31 +127,37 @@ const App: React.FC = () => {
     setInventory([]);
   };
 
+  const toggleTheme = () => setIsDarkMode(!isDarkMode);
+
   if (loading) {
     return (
-      <div className="bg-gray-900 text-white min-h-screen flex items-center justify-center">
+      <div className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen flex items-center justify-center transition-colors">
         <p>Loading...</p>
       </div>
     );
   }
 
   if (!session || !profile) {
-    return <Auth />;
+    return <Auth isDarkMode={isDarkMode} toggleTheme={toggleTheme} />;
   }
 
   return (
-    <div className="bg-gray-900 text-white min-h-screen font-sans">
+    <div className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen font-sans transition-colors duration-300">
       {profile.role === 'boss' ? (
         <BossDashboard 
           inventory={inventory}
           onLogout={handleLogout}
           refreshInventory={() => fetchInventory(profile)}
+          isDarkMode={isDarkMode}
+          toggleTheme={toggleTheme}
         />
       ) : (
         <WorkerDashboard 
           inventory={inventory} 
           onLogout={handleLogout}
           refreshInventory={() => fetchInventory(profile)}
+          isDarkMode={isDarkMode}
+          toggleTheme={toggleTheme}
         />
       )}
     </div>
