@@ -1,0 +1,5 @@
+{
+  "name": "Shopify Stock-Taking App",
+  "description": "An inventory management application with distinct roles for a Boss (full control) and a Worker (view-only access with limitations).",
+  "requestFramePermissions": []
+}
